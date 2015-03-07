@@ -5,12 +5,10 @@ namespace WinTail {
 
     public class FileValidatorActor : UntypedActor {
         private readonly ActorRef _consoleWriterActor;
-        private readonly ActorRef _tailCoordinatorActor;
-
-        public FileValidatorActor(ActorRef consoleWriterActor, ActorRef tailCoordinatorActor)
+        
+        public FileValidatorActor(ActorRef consoleWriterActor)
         {
             _consoleWriterActor = consoleWriterActor;
-            _tailCoordinatorActor = tailCoordinatorActor;
         }
 
         protected override void OnReceive(object message) {
@@ -23,7 +21,8 @@ namespace WinTail {
                 var valid = IsFileUri(msg);
                 if (valid) {
                     _consoleWriterActor.Tell(new Messages.InputSuccess(string.Format("Started processing for {0}", msg)));
-                    _tailCoordinatorActor.Tell(new TailCoordinatorActor.StartTail(msg, _consoleWriterActor));
+
+                    Context.ActorSelection("/user/tailCoordinatorActor").Tell(new TailCoordinatorActor.StartTail(msg, _consoleWriterActor));
                 }
                 else {
                     // signal that input was bad
