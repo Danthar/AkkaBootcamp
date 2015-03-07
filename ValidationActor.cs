@@ -1,44 +1,48 @@
-﻿using Akka.Actor;
+﻿using System.IO;
+using Akka.Actor;
 
 namespace WinTail {
-    public class ValidationActor : UntypedActor {
-        private readonly ActorRef _consoleWriterActor;
 
-        public ValidationActor(ActorRef consoleWriterActor) {
+    public class FileValidatorActor : UntypedActor {
+        private readonly ActorRef _consoleWriterActor;
+        private readonly ActorRef _tailCoordinatorActor;
+
+        public FileValidatorActor(ActorRef consoleWriterActor, ActorRef tailCoordinatorActor)
+        {
             _consoleWriterActor = consoleWriterActor;
+            _tailCoordinatorActor = tailCoordinatorActor;
         }
 
         protected override void OnReceive(object message) {
             var msg = message as string;
             if (string.IsNullOrEmpty(msg)) {
-                //signal that the user needs to supply an input
-                _consoleWriterActor.Tell(new Messages.NullInputError("No input recieved"));
+                _consoleWriterActor.Tell(new Messages.NullInputError("Input was blank. Please try again.\n"));
+                Sender.Tell(new Messages.ContinueProcessing());
             }
             else {
-                var valid = IsValid(msg);
+                var valid = IsFileUri(msg);
                 if (valid) {
-                    _consoleWriterActor.Tell(new Messages.InputSuccess("Thank you! Message was valid."));
+                    _consoleWriterActor.Tell(new Messages.InputSuccess(string.Format("Started processing for {0}", msg)));
+                    _tailCoordinatorActor.Tell(new TailCoordinatorActor.StartTail(msg, _consoleWriterActor));
                 }
                 else {
-                    //signal that input was bad
-                    _consoleWriterActor.Tell(new Messages.ValidationError("Invalid: input had odd number of characters."));
+                    // signal that input was bad
+                    _consoleWriterActor.Tell(new Messages.ValidationError(string.Format("{0} is not an existing URI on disk.", msg)));
+
+                    // tell sender to continue doing its thing (whatever that may be, this actor doesn't care)
+                    Sender.Tell(new Messages.ContinueProcessing());
                 }
             }
-
-            Sender.Tell(new Messages.ContinueProcessing());
         }
 
         /// <summary>
-        /// Determines if the message received is valid.
-        /// Currently, arbitrarily checks if number of chars in message received is even.
+        /// Checks if file exists at path provided by user.
         /// </summary>
-        /// <param name="msg"></param>
+        /// <param name="path"></param>
         /// <returns></returns>
-        private static bool IsValid(string msg)
+        private static bool IsFileUri(string path)
         {
-            var valid = msg.Length % 2 == 0;
-            return valid;
+            return File.Exists(path);
         }
-
     }
 }
