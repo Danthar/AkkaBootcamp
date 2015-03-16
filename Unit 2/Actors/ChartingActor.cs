@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 namespace ChartApp.Actors
 {
-    public class ChartingActor : ReceiveActor
+    public class ChartingActor : ReceiveActor, WithUnboundedStash
     {
         #region Messages
 
@@ -63,6 +63,8 @@ namespace ChartApp.Actors
 
         private Dictionary<string, Series> _seriesIndex;
 
+        public IStash Stash { get; set; }
+
         public ChartingActor(Chart chart, Button pauseButton) : this(chart, new Dictionary<string, Series>(), pauseButton)
         {
         }
@@ -91,13 +93,18 @@ namespace ChartApp.Actors
             });
         }
 
-        private void Paused()
-        {
+        private void Paused() {
+            Receive<AddSeries>(_ => Stash.Stash());
+            Receive<RemoveSeries>(_ => Stash.Stash());
             Receive<Metric>(metric => HandleMetricsPaused(metric));
             Receive<TogglePause>(pause =>
             {
                 SetPauseButtonText(false);
                 Unbecome();
+                // ChartingActor is leaving the Paused state, put messages back
+                // into mailbox for processing under new behavior
+
+                Stash.UnstashAll();
             });
         }
 
