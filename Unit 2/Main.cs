@@ -19,7 +19,7 @@ namespace ChartApp
         public Main() {
             InitializeComponent();
 
-            _chartActor = Program.ChartActors.ActorOf(Props.Create(() => new ChartingActor(sysChart)), "charting");
+            _chartActor = Program.ChartActors.ActorOf(Props.Create(() => new ChartingActor(sysChart, btnPauseResume)), "charting");
             _chartActor.Tell(new ChartingActor.InitializeChart(null)); // no initial series
 
             _coordinatorActor =
@@ -36,9 +36,7 @@ namespace ChartApp
 
 
             //set the cpu toggle to on so we start getting some data
-            _toggleActors[CounterType.Cpu].Tell(new ButtonToggleActor.Toggle());
-
-           
+            _toggleActors[CounterType.Cpu].Tell(new ButtonToggleActor.Toggle());  
         }
 
         #region Initialization
@@ -46,7 +44,7 @@ namespace ChartApp
 
         private void Main_Load(object sender, EventArgs e)
         {
-            _chartActor = Program.ChartActors.ActorOf(Props.Create(() => new ChartingActor(sysChart)), "charting");
+            _chartActor = Program.ChartActors.ActorOf(Props.Create(() => new ChartingActor(sysChart, btnPauseResume)), "charting");
             var series = ChartDataHelper.RandomSeries("FakeSeries" + _seriesCounter.GetAndIncrement());
             _chartActor.Tell(new ChartingActor.InitializeChart(new Dictionary<string, Series>()
             {
@@ -71,6 +69,9 @@ namespace ChartApp
             _toggleActors[CounterType.Disk].Tell(new ButtonToggleActor.Toggle());
         }
 
-      
+        private void btnPauseResume_Click(object sender, EventArgs e)
+        {
+            _chartActor.Tell(new ChartingActor.TogglePause());
+        }      
     }
 }
